@@ -8,28 +8,39 @@ def extract_amount(text):
     match = re.search(pattern, text)
     if match:
         return float(match.group(1))
-    pass
+    else: return False
 
+def extract_limit(text):
+    regex = r"limit is EGP ([0-9.]+)"
+    match = re.search(regex, text)
+    if match:
+        return float(match.group(1))
+    return None
 
 def extract_date_and_time(text):
     pattern = r"(\d{2}/\d{2}/\d{4}\s+\d{1,2}:\d{2}:\d{2}\s+[AP]M)"
     match = re.search(pattern, text)
     if match:
         return match.group(1)
-    pass
+    
+    else: return False
 
 def extract_credit_card_ending(text):
     pattern = r"\* (\d{4}) has been used"
     match = re.search(pattern, text)
     if match:
         return match.group(1)
-    pass
+    else : return False
+
 def extract_location(text):
     pattern = r"at (.+?)\."
     match = re.search(pattern, text)
     if match:
         return match.group(1)
-    pass
+    else: return False
+
+def contains_star(input_string):
+    return '*' in input_string
 
 def extract_sublists(my_list, delimiter):
     # Find the indices of the delimiter elements
@@ -40,69 +51,101 @@ def extract_sublists(my_list, delimiter):
 
     return sublists
 
-# Path to your XML file
 xml_file_path = "/home/kali/Desktop/all_python_files/qatar/download.xml"
 
-# Parse the XML file
-tree = ET.parse(xml_file_path)
-root = tree.getroot()
-body_element = root.find('{http://schemas.microsoft.com/office/word/2003/wordml}body')
-sect = body_element.find('{http://schemas.microsoft.com/office/word/2003/auxHint}sect')
+def add_the_hash_map_values(hashMap, listToAddOn:list):
+    for key, value in hashMap.items():
+        amount = value['amount']
+        limit = value['limit']
+        place = value['place']
+        credit_card_number = value['credit card number']
 
-tbls = sect.findall('{http://schemas.microsoft.com/office/word/2003/wordml}tbl')
-print(tbls)
+        listToAddOn[key].append(amount)
+        listToAddOn[key].append(limit)
+        listToAddOn[key].append(place)
+        listToAddOn[key].append(credit_card_number)
 
-print("#")
+def extract_messages_from_xml(xml_path):
+    # Path to your XML file
 
-trs = []
-tcs = []
-ps = []
-rs = []
-ts = []
+    # Parse the XML file
+    tree = ET.parse(xml_path)
+    root = tree.getroot()
+    body_element = root.find('{http://schemas.microsoft.com/office/word/2003/wordml}body')
+    sect = body_element.find('{http://schemas.microsoft.com/office/word/2003/auxHint}sect')
+    tbls = sect.findall('{http://schemas.microsoft.com/office/word/2003/wordml}tbl')
 
-for tbl in tbls:
-    trs_to_append = tbl.findall("{http://schemas.microsoft.com/office/word/2003/wordml}tr")
+    messages_data = []
 
-    for tc in trs_to_append:
-        tcs_to_append = tc.findall("{http://schemas.microsoft.com/office/word/2003/wordml}tc")
+    for MasterGrandFather in tbls:
+        MGF_to_append = MasterGrandFather.findall("{http://schemas.microsoft.com/office/word/2003/wordml}tr")
 
-        for p in tcs_to_append:
-            ps_to_append = p.findall("{http://schemas.microsoft.com/office/word/2003/wordml}p")
+        for GrandFather in MGF_to_append:
+            GF_to_append = GrandFather.findall("{http://schemas.microsoft.com/office/word/2003/wordml}tc")
 
-            for r in ps_to_append:
-                rs_to_append = r.findall("{http://schemas.microsoft.com/office/word/2003/wordml}r")
+            for Paerent in GF_to_append:
+                Paerents_to_append = Paerent.findall("{http://schemas.microsoft.com/office/word/2003/wordml}p")
 
-                for t in rs_to_append:
-                    ts_to_append = t.findall("{http://schemas.microsoft.com/office/word/2003/wordml}t")
-                    for i in ts_to_append: ts.append(i.text)
+                for Child in Paerents_to_append:
+                    Childs_to_append = Child.findall("{http://schemas.microsoft.com/office/word/2003/wordml}r")
 
-for i in range(17):
-    ts.remove("From HSBC: Your Credit Card ending with")
-# for text in ts:
-#     print(extract_amount(text))
-#     print(extract_date_and_time(text))
-#     print(extract_credit_card_ending(text))
-#     print(extract_location(text))
-                    
-logs = extract_sublists(ts, "Received")
+                    for Kid in Childs_to_append:
+                        Kids_to_append = Kid.findall("{http://schemas.microsoft.com/office/word/2003/wordml}t")
+                        for i in Kids_to_append: messages_data.append(i.text)
 
-counter = 0
-for transaction in logs:
-    for i in transaction:
+    return messages_data
 
-        if extract_amount(str(i)):
-            logs[counter].append(extract_amount(str(i)))
+messages_data = extract_messages_from_xml(xml_file_path)
 
-        else: pass
+def replace_commas_in_the_list(the_list):
+    the_new_list = []
+    for i in the_list:
+        old = str(i)
+        new = old.replace(",", "")
+        the_new_list.append(new)
 
-        if extract_location(str(i)):
-            logs[counter].append(extract_location(str(i)))
+    return the_new_list
 
-        else: logs[counter].append(None)
-    counter += 1
+def make_a_hash_map_for_the_data(list_of_messages):
     
+    hash_map = {}
+    for j in list_of_messages:
+        for i in j:
+            if contains_star(i):
+                hash_map[list_of_messages.index(j)] = {"amount": None, "credit card number": None, "place": None, "limit":None}
 
+                amount = extract_amount(i)
+                if amount:
+                    hash_map[list_of_messages.index(j)]['amount'] = amount
+        
+                
+                place = extract_location(i)
+                if place:
+                    hash_map[list_of_messages.index(j)]['place'] = place
+
+                Credit_card_number = extract_credit_card_ending(i)
+                if Credit_card_number:
+                    hash_map[list_of_messages.index(j)]['credit card number'] = Credit_card_number
+
+                limit = extract_limit(i)
+                if limit:
+                    hash_map[list_of_messages.index(j)]['limit'] = limit
+
+            else: pass
+    return hash_map
+
+def fix_the_data():
+
+    mylist = [item for item in messages_data if item != "From HSBC: Your Credit Card ending with"]
+    mylist_without_commas = replace_commas_in_the_list(mylist)
+    logs = extract_sublists(mylist_without_commas, "Received")
+
+    hash_map = make_a_hash_map_for_the_data(logs)
+
+    add_the_hash_map_values(hash_map, logs)
+    return logs
+    
 
 with open('transactions.csv', 'w', newline='') as csvfile:
     csvwriter = csv.writer(csvfile)
-    csvwriter.writerows(logs)
+    csvwriter.writerows(fix_the_data())
